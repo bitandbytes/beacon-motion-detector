@@ -6,6 +6,7 @@
 #include "MQTTClientPersistence.h"
 #include "time.h"
 #include "pthread.h"
+#include "stdbool.h"
 
 #define ADDRESS     "localhost"
 #define CLIENTID_1  "iCitySub_1"
@@ -21,7 +22,7 @@ FILE* fp_1;
 FILE* fp_2;
 
 char TOPICS[2][400];
-char** TOPICS_PTR = TOPICS;
+char** TOPICS_PTR = (char**)TOPICS; //remove (char**) if a run time error occured
 
 char ch[50]="\n";
 char beaconID_1[100];
@@ -29,6 +30,104 @@ char beaconID_2[100];
 
 volatile MQTTClient_deliveryToken deliveredtoken;
 
+/*Link List Block*/
+struct data_packet
+{
+    int val[3];
+    struct data_packet *next;
+};
+
+struct data_packet *head = NULL;
+struct data_packet *curr = NULL;
+
+struct data_packet* create_list(int* val)
+{
+    printf("\n creating list with headnode as [%d]\n",val[0]);
+    struct data_packet *ptr = (struct data_packet*)malloc(sizeof(struct data_packet));
+    if(NULL == ptr)
+    {
+        printf("\n Node creation failed \n");
+        return NULL;
+    }
+    ptr->val[0] = val[0];
+    ptr->val[1] = val[1];
+    ptr->val[2] = val[2];
+    ptr->next = NULL;
+
+    head = curr = ptr;
+    return ptr;
+}
+
+struct data_packet* add_to_list(int* val, bool add_to_end)
+{
+
+    add_to_end = true; //Always add to the end
+
+    if(NULL == head)
+    {
+        return (create_list(val));
+    }
+
+    if(add_to_end)
+        printf("\n Adding node to end of list with value [%d]\n",val[0]);
+    else
+        printf("\n Adding node to beginning of list with value [%d]\n",val[0]);
+
+    struct data_packet *ptr = (struct data_packet*)malloc(sizeof(struct data_packet));
+    if(NULL == ptr)
+    {
+        printf("\n Node creation failed \n");
+        return NULL;
+    }
+    ptr->val[0] = val[0];
+    ptr->val[1] = val[1];
+    ptr->val[2] = val[2];
+    ptr->next = NULL;
+
+    if(add_to_end)
+    {
+        curr->next = ptr;
+        curr = ptr;
+    }
+    else
+    {
+        ptr->next = head;
+        head = ptr;
+    }
+    return ptr;
+}
+
+struct data_packet* delete_list(struct data_packet **prev)
+{
+
+    printf("\nDeleting the list\n");
+    struct data_packet *tmp = head->next;
+
+//Delete the list except for the last element (curr)
+    while(head != curr)
+    {
+	free(head);
+	head = tmp;
+	tmp = head->next;
+    }
+
+}
+
+void print_list(void)
+{
+    struct data_packet *ptr = head;
+
+    printf("\n -------Printing list Start------- \n");
+    while(ptr != NULL)
+    {
+        printf("\n [%d],[%d],[%d] \n",ptr->val[0],ptr->val[1],ptr->val[2]);
+        ptr = ptr->next;
+    }
+    printf("\n -------Printing list End------- \n");
+
+    return;
+}
+//MQTT Block
 void delivered(void *context, MQTTClient_deliveryToken dt)
 {
     printf("Message with token value %d delivery confirmed\n", dt);
@@ -38,17 +137,27 @@ void delivered(void *context, MQTTClient_deliveryToken dt)
 int msgarrvd(void *fp, char *topicName, int topicLen, MQTTClient_message *message)
 {
     int i;
+    int val[3];
     char* payloadptr;
     int flag = 0;
-time_t t = time(NULL);
-struct tm tm = *localtime(&t);
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
 
     printf("Message arrived\n");
     printf("     topic: %s\n", topicName);
     printf("   message: ");
     printf("%d%d%d,",tm.tm_hour,tm.tm_min,tm.tm_sec);
-    fprintf(fp,"%d%d%d,",tm.tm_hour,tm.tm_min,tm.tm_sec);
+//    fprintf(fp,"%d%d%d,",tm.tm_hour,tm.tm_min,tm.tm_sec);
     payloadptr = message->payload;
+
+    val[0] = atoi(strtok(payloadptr,":,"));
+    val[1] = atoi(strtok(NULL,":,"));
+    val[2] = atoi(strtok(NULL,":}"));
+
+   printf("X:%d, Y:%d, Z:%d\n",val[0],val[1],val[2]);
+   
+
+/* Old file print block
     for(i=0; i < message->payloadlen; i++)
     {
 	if( *payloadptr == ':'){
@@ -69,8 +178,10 @@ struct tm tm = *localtime(&t);
 		putc(*payloadptr,fp);
 	}
 	payloadptr++;
+
 //	putchar(*payloadptr);
     }
+*/
 
 /*    if(strcmp(beaconID_1,id) == 0){
 	fprintf(fp_1,"%s,%s,%s,%s,%s,%s",msgTime,orientation,x,y,z,ch);
@@ -87,9 +198,9 @@ struct tm tm = *localtime(&t);
    // printf("%s,%s,%s,%s,%s",time,x,y,z,ch);
    // putchar('\n');
   //  putc('\n',fp);
-    printf(",%s",ch);
-    fprintf(fp,",%s",ch);
-    fflush(fp);
+  //  printf(",%s",ch);
+ //   fprintf(fp,",%s",ch);
+ //   fflush(fp);
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);
    // fflush(fp_1);
@@ -102,7 +213,7 @@ void connlost(void *context, char *cause)
     printf("\nConnection lost\n");
     printf("     cause: %s\n", cause);
 }
-
+//Thread 1 function
 void* MQTTClient_multiSubscribe_1(void* arg)
 {
 	MQTTClient client;
@@ -140,6 +251,7 @@ void* MQTTClient_multiSubscribe_1(void* arg)
     	MQTTClient_destroy(&client);
 }
 
+//Thread 2 function
 void* MQTTClient_multiSubscribe_2(void* arg)
 {
         MQTTClient client;
