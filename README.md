@@ -1,4 +1,3 @@
-# beacon-motion-detector
 Beacon Motion Detector
 ======================
 
