@@ -138,6 +138,10 @@ int msgarrvd(void *fp, char *topicName, int topicLen, MQTTClient_message *messag
 {
     int i;
     int val[3];
+    char* x;
+    char* y;
+    char* z;
+    char* tmp;
     char* payloadptr;
     int flag = 0;
     time_t t = time(NULL);
@@ -146,16 +150,33 @@ int msgarrvd(void *fp, char *topicName, int topicLen, MQTTClient_message *messag
     printf("Message arrived\n");
     printf("     topic: %s\n", topicName);
     printf("   message: ");
-    printf("%d%d%d,",tm.tm_hour,tm.tm_min,tm.tm_sec);
+    printf("%d:%d:%d ",tm.tm_hour,tm.tm_min,tm.tm_sec);
 //    fprintf(fp,"%d%d%d,",tm.tm_hour,tm.tm_min,tm.tm_sec);
     payloadptr = message->payload;
 
-    val[0] = atoi(strtok(payloadptr,":,"));
+    tmp = strtok(payloadptr,":");
+    x = strtok(NULL,",");
+    tmp = strtok(NULL,":");
+    y = strtok(NULL,",");
+    tmp = strtok(NULL,":");
+    z = strtok(NULL,"}");
+ 
+payloadptr = message->payload;
+/*for(i=0; i < message->payloadlen; i++)
+    {
+	putchar(*payloadptr++);
+    }
+*/
+/*    val[0] = atoi(strtok(payloadptr,":,"));
     val[1] = atoi(strtok(NULL,":,"));
     val[2] = atoi(strtok(NULL,":}"));
+*/
+   printf(" X:%s, Y:%s, Z:%s\n",x,y,z);
+//######################################################################
+//TODO convert the values to integer and add the values to the list
+//######################################################################
 
-   printf("X:%d, Y:%d, Z:%d\n",val[0],val[1],val[2]);
-   
+//   add_to_list(val,true);
 
 /* Old file print block
     for(i=0; i < message->payloadlen; i++)
@@ -291,8 +312,8 @@ int main(int argc, char* argv[])
 {
     pthread_t thread1, thread2;
 
-    fp_1 = fopen("data-1.csv","a");
-    fp_2 = fopen("data-2.csv","a");
+//    fp_1 = fopen("data-1.csv","a");
+//    fp_2 = fopen("data-2.csv","a");
     //Getting the input
 	printf("Enter the 1st beacon ID: ");
 	scanf("%s",&beaconID_1);
