@@ -37,10 +37,10 @@ struct data_packet
     struct data_packet *next;
 };
 
-struct data_packet *head = NULL;
+/*struct data_packet *head = NULL;
 struct data_packet *curr = NULL;
-
-struct data_packet* create_list(int* val)
+*/
+struct data_packet* create_list(int* val, struct data_packet **list)
 {
     printf("\n creating list with headnode as [%d]\n",val[0]);
     struct data_packet *ptr = (struct data_packet*)malloc(sizeof(struct data_packet));
@@ -54,18 +54,17 @@ struct data_packet* create_list(int* val)
     ptr->val[2] = val[2];
     ptr->next = NULL;
 
-    head = curr = ptr;
+    list[0] = list[1] = ptr;
     return ptr;
 }
 
-struct data_packet* add_to_list(int* val, bool add_to_end)
+struct data_packet* add_to_list(int* val, struct data_packet **list)
 {
+    bool add_to_end = true; //Always add to the end
 
-    add_to_end = true; //Always add to the end
-
-    if(NULL == head)
+    if(NULL == list[0])
     {
-        return (create_list(val));
+        return (create_list(val,list));
     }
 
     if(add_to_end)
@@ -86,36 +85,36 @@ struct data_packet* add_to_list(int* val, bool add_to_end)
 
     if(add_to_end)
     {
-        curr->next = ptr;
-        curr = ptr;
+        list[1]->next = ptr;
+        list[1] = ptr;
     }
     else
     {
-        ptr->next = head;
-        head = ptr;
+        ptr->next = list[0];
+        list[0] = ptr;
     }
     return ptr;
 }
 
-struct data_packet* delete_list(struct data_packet **prev)
+struct data_packet* delete_list(struct data_packet **prev, struct data_packet **list)
 {
 
     printf("\nDeleting the list\n");
-    struct data_packet *tmp = head->next;
+    struct data_packet *tmp = list[0]->next;
 
 //Delete the list except for the last element (curr)
-    while(head != curr)
+    while(list[0] != list[1])
     {
-	free(head);
-	head = tmp;
-	tmp = head->next;
+	free(list[0]);
+	list[0] = tmp;
+	tmp = list[0]->next;
     }
 
 }
 
-void print_list(void)
+void print_list(struct data_packet **list)
 {
-    struct data_packet *ptr = head;
+    struct data_packet *ptr = list[0];
 
     printf("\n -------Printing list Start------- \n");
     while(ptr != NULL)
@@ -134,99 +133,44 @@ void delivered(void *context, MQTTClient_deliveryToken dt)
     deliveredtoken = dt;
 }
 
-int msgarrvd(void *fp, char *topicName, int topicLen, MQTTClient_message *message)
+int msgarrvd(struct data_packet **list, char *topicName, int topicLen, MQTTClient_message *message)
 {
-    int i;
-    int val[3];
-    char* x;
-    char* y;
-    char* z;
-    char* tmp;
-    char* payloadptr;
-    int flag = 0;
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
+     int i;
+     int val[3];
+     char* tmp;
+     char* payloadptr;
+     int flag = 0;
+     time_t t = time(NULL);
+     struct tm tm = *localtime(&t);
 
-    printf("Message arrived\n");
-    printf("     topic: %s\n", topicName);
-    printf("   message: ");
-    printf("%d:%d:%d ",tm.tm_hour,tm.tm_min,tm.tm_sec);
-//    fprintf(fp,"%d%d%d,",tm.tm_hour,tm.tm_min,tm.tm_sec);
-    payloadptr = message->payload;
+     printf("Message arrived\n");
+     printf("     topic: %s\n", topicName);
+     printf("   message: ");
+     printf("%d:%d:%d ",tm.tm_hour,tm.tm_min,tm.tm_sec);
+//   fprintf(fp,"%d%d%d,",tm.tm_hour,tm.tm_min,tm.tm_sec);
+     payloadptr = message->payload;
 
-    tmp = strtok(payloadptr,":");
-    x = strtok(NULL,",");
-    tmp = strtok(NULL,":");
-    y = strtok(NULL,",");
-    tmp = strtok(NULL,":");
-    z = strtok(NULL,"}");
- 
-payloadptr = message->payload;
-/*for(i=0; i < message->payloadlen; i++)
-    {
+     tmp = strtok(payloadptr,":");
+     val[0] = atoi(strtok(NULL,","));
+     tmp = strtok(NULL,":");
+     val[1] = atoi(strtok(NULL,","));
+     tmp = strtok(NULL,":");
+     val[2] = atoi(strtok(NULL,"}"));
+
+/*   payloadptr = message->payload;
+     for(i=0; i < message->payloadlen; i++)
+     {
 	putchar(*payloadptr++);
-    }
-*/
-/*    val[0] = atoi(strtok(payloadptr,":,"));
-    val[1] = atoi(strtok(NULL,":,"));
-    val[2] = atoi(strtok(NULL,":}"));
-*/
-   printf(" X:%s, Y:%s, Z:%s\n",x,y,z);
-//######################################################################
-//TODO convert the values to integer and add the values to the list
-//######################################################################
+     }*/
 
-//   add_to_list(val,true);
+     printf(" X:%i, Y:%i, Z:%i\n",val[0],val[1],val[2]);
+     add_to_list(val,list);
+     print_list(list);
 
-/* Old file print block
-    for(i=0; i < message->payloadlen; i++)
-    {
-	if( *payloadptr == ':'){
-		flag = 1;
-		payloadptr++;
-	}
-	else if( *payloadptr == '}' ){
-		flag = 2;
-	}
-	else if( *payloadptr == ',' ){
-		flag = 0;
-		putchar(*payloadptr);
-		putc(*payloadptr,fp);
-	}
-
-	if (flag == 1){ 
-		putchar(*payloadptr);
-		putc(*payloadptr,fp);
-	}
-	payloadptr++;
-
-//	putchar(*payloadptr);
-    }
-*/
-
-/*    if(strcmp(beaconID_1,id) == 0){
-	fprintf(fp_1,"%s,%s,%s,%s,%s,%s",msgTime,orientation,x,y,z,ch);
- 	printf("%d:%d:%d %s,%s,%s,%s,%s,%s,%s",tm.tm_hour, tm.tm_min, tm.tm_sec,beaconID_1,msgTime,orientation,x,y,z,ch);
-    }
-    else if(strcmp(beaconID_2,id) == 0){
-	fprintf(fp_2,"%s,%s,%s,%s,%s,%s",msgTime,orientation,x,y,z,ch);
-	printf("%d:%d:%d %s,%s,%s,%s,%s,%s,%s",tm.tm_hour, tm.tm_min, tm.tm_sec,beaconID_2,msgTime,orientation,x,y,z,ch);
-    }
-    else{
-	printf("Not in the defined ID range\n");
-    }
-*/
-   // printf("%s,%s,%s,%s,%s",time,x,y,z,ch);
-   // putchar('\n');
-  //  putc('\n',fp);
-  //  printf(",%s",ch);
- //   fprintf(fp,",%s",ch);
- //   fflush(fp);
-    MQTTClient_freeMessage(&message);
-    MQTTClient_free(topicName);
-   // fflush(fp_1);
-   // fflush(fp_2);
-    return 1;
+  //   print_list();
+     MQTTClient_freeMessage(&message);
+     MQTTClient_free(topicName);
+     return 1;
 }
 
 void connlost(void *context, char *cause)
@@ -237,6 +181,11 @@ void connlost(void *context, char *cause)
 //Thread 1 function
 void* MQTTClient_multiSubscribe_1(void* arg)
 {
+	struct data_packet *list[2];
+	//Head is list[0] and current location is list[1]
+	list[0] = NULL;
+	list[1] = NULL;
+
 	MQTTClient client;
 	MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
 	int rc;
@@ -245,7 +194,7 @@ void* MQTTClient_multiSubscribe_1(void* arg)
 	conn_opts.keepAliveInterval = 60;
 	conn_opts.cleansession = 1;
 
-	MQTTClient_setCallbacks(client,fp_1, connlost, msgarrvd, delivered);
+	MQTTClient_setCallbacks(client,list,connlost,msgarrvd,delivered);
 
 	if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS)
     	{
@@ -267,7 +216,6 @@ void* MQTTClient_multiSubscribe_1(void* arg)
         } while(1);
 
 	printf("Thread 1 ended\n");
-
 	MQTTClient_disconnect(client, 10000);
     	MQTTClient_destroy(&client);
 }
@@ -275,7 +223,12 @@ void* MQTTClient_multiSubscribe_1(void* arg)
 //Thread 2 function
 void* MQTTClient_multiSubscribe_2(void* arg)
 {
-        MQTTClient client;
+        struct data_packet *list[2];
+        //Head is list[0] and current location is list[1]
+        list[0] = NULL;
+        list[1] = NULL;
+
+	MQTTClient client;
         MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
         int rc;
 
@@ -283,7 +236,7 @@ void* MQTTClient_multiSubscribe_2(void* arg)
         conn_opts.keepAliveInterval = 60;
         conn_opts.cleansession = 1;
 
-        MQTTClient_setCallbacks(client,fp_2, connlost, msgarrvd, delivered);
+        MQTTClient_setCallbacks(client,list,connlost,msgarrvd,delivered);
 
         if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS)
         {
